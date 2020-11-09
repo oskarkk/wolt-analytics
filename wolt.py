@@ -38,7 +38,7 @@ def deliveries(*pages):
   data.setdefault('deliveries', {})
   s = []
   for page in pages:
-    page = page.replace('PLNO', 'PLN0')
+    #page = page.replace('PLNO', 'PLN0')
     s += page.splitlines()
   day = None
   delivery = None
@@ -61,7 +61,7 @@ def deliveries(*pages):
       delivery['from'] = g[0]
 
     # linijka z zapłatą
-    match = re.match('Base Payment PLN(.?.\...)$', line)
+    match = re.match('Base Payment PLN (.?.\...)$', line)
     if match:
       g = match.groups()
       delivery['payment'] = delivery['base_payment'] = float(g[0])
@@ -69,7 +69,7 @@ def deliveries(*pages):
 
     # linijka z odległością
     # może być np. "1.4 km" i "2.71 km"
-    match = re.match('Distance Payment (.?.\..?.) km PLN(.?.\...)$', line)
+    match = re.match('Distance Payment (.?.\..?.) km PLN (.?.\...)$', line)
     if match:
       g = match.groups()
       delivery['km'] = float(g[0])
@@ -78,7 +78,7 @@ def deliveries(*pages):
       print(delivery['payment'], end='')
 
     # linijka z napiwkiem
-    match = re.match('Tip PLN(.?.\...)$', line)
+    match = re.match('Tip PLN (.?.\...)$', line)
     if match:
       g = match.groups()
       delivery['tip'] = float(g[0])
@@ -95,6 +95,6 @@ pp(data)
 #deliveries(*s)
 #s = read(*glob('S*'))
 
-s = read_pages('delistare')
+s = read_pages('10-h2')
 
 # sum([ data['deliveries'][y].get('km_payment',0) for y in data['deliveries'] ])
