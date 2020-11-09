@@ -9,10 +9,10 @@ from glob import glob
 import pprint
 
 
-data = { 'payouts': {}, 'deliveries': {} }
+data = {'deliveries': {}, 'payouts': {}}
 
 
-def save():
+def save(data):
   with open('data.json', 'w') as f:
     json.dump(data, f)
 
@@ -41,8 +41,8 @@ def read_pages(name):
     return json.load(f)
 
 
-def pp(s):
-  pprint.pp(s, sort_dicts=True)
+def pp(s, d=None):
+  pprint.pp(s, sort_dicts=True, depth=d)
 
 def gl(s):
   return sorted(glob(s))
