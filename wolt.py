@@ -7,18 +7,28 @@ from utils import *
 
 def payouts(page):
   for line in page.splitlines():
-    if ('>' in line) and (line[:3] != 'PLN'):
-      parts = re.match('(.*)/(.*)/(.*) PLN(.*) >', line).groups()
+    match = re.match('(.*)/(.*)/(.*) PLN (.*) >', line)
+    if match:
+      parts = match.groups()
       if parts[0] == '01':
         if parts[1] == '01':
-          name = str(int(parts[2])-1) + '-12-h2'
+          year = str(int(parts[2])-1)
+          month = '12'
+          half = 'h2'
         else:
-          name = parts[2] + '-' + str(int(parts[1])-1).rjust(2,'0') + '-h2'
+          year = parts[2]
+          month = str(int(parts[1])-1).rjust(2,'0')
+          half = 'h2'
       else:
-        name = parts[2] + '-' + parts[1] + '-h1'
+        year = parts[2]
+        month = parts[1]
+        half = 'h1'
+      name = year + '-' + month + '-' + half
       value = float(parts[3].replace(',',''))
       data['payouts'].setdefault(name, {})
       data['payouts'][name]['value'] = value
+      data['payouts'][name]['start'] = str(datetime(int(year),int(month),1 if half == 'h1' else 16))
+      data['payouts'][name]['end'] = str(datetime(int(parts[2]),int(parts[1]),int(parts[0])))
 
 def deliveries(*pages):
   data.setdefault('deliveries', {})
