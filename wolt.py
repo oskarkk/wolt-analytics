@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, date
 from utils import *
-#from pathlib import Path
+from collections import Counter
 
 def payouts(page):
   for line in page.splitlines():
@@ -59,12 +59,11 @@ def deliveries(*pages):
       time = datetime(*[int(x) for x in day + g[1:]])
       delivery = data['deliveries'][str(time)] = {}
       delivery['from'] = g[0]
-      for payout in data['payouts']:
-        p = data['payouts'][payout]
-        start = datetime.fromisoformat(p['start'])
-        end = datetime.fromisoformat(p['end'])
+      for payout in data['payouts'].values():
+        start = datetime.fromisoformat(payout['start'])
+        end = datetime.fromisoformat(payout['end'])
         if time > start and time < end:
-          p['deliveries'][str(time)] = delivery
+          payout['deliveries'][str(time)] = delivery
           break
 
     # linijka z zapłatą
@@ -94,8 +93,20 @@ def deliveries(*pages):
 
     print()
 
+def deliveries_summary(deliveries):
+  c = Counter()
+
+  for delivery in deliveries.values():
+    c.update(delivery)
+
+  del c['from']
+  c = dict(c)
+  pp(c)
+  return c
+
 
 data = read()
+
 pp(data)
 
 #s = ocr(*gl('S*')[2:4])
