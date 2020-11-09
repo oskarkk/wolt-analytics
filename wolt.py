@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -i
 
 import re
-from datetime import datetime
+from datetime import datetime, date
 from utils import *
 #from pathlib import Path
 
@@ -10,25 +10,29 @@ def payouts(page):
     match = re.match('(.*)/(.*)/(.*) PLN (.*) >', line)
     if match:
       parts = match.groups()
-      if parts[0] == '01':
-        if parts[1] == '01':
-          year = str(int(parts[2])-1)
-          month = '12'
-          half = 'h2'
+
+      pyear = int(parts[2])
+      pmonth = int(parts[1])
+      phalf = int(parts[0])
+
+      year = pyear
+
+      if phalf == 1:
+        half = 16
+        if pmonth == 1:
+          month = 12
+          year = pyear-1
         else:
-          year = parts[2]
-          month = str(int(parts[1])-1).rjust(2,'0')
-          half = 'h2'
-      else:
-        year = parts[2]
-        month = parts[1]
-        half = 'h1'
-      name = year + '-' + month + '-' + half
-      value = float(parts[3].replace(',',''))
-      data['payouts'].setdefault(name, {})
-      data['payouts'][name]['value'] = value
-      data['payouts'][name]['start'] = str(datetime(int(year),int(month),1 if half == 'h1' else 16))
-      data['payouts'][name]['end'] = str(datetime(int(parts[2]),int(parts[1]),int(parts[0])))
+          month = pmonth-1
+      elif phalf == 16:
+        half = 1
+        month = pmonth
+
+      name = str(date(year, month, half))
+      payout = data['payouts'].setdefault(name, {})
+      payout['start'] = str(datetime(year, month, half))
+      payout['end'] = str(datetime(pyear, pmonth, phalf))
+      payout['value'] = float(parts[3].replace(',', ''))
 
 def deliveries(*pages):
   data.setdefault('deliveries', {})
