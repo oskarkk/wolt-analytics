@@ -33,6 +33,7 @@ def payouts(page):
       payout['start'] = str(datetime(year, month, half))
       payout['end'] = str(datetime(pyear, pmonth, phalf))
       payout['value'] = float(parts[3].replace(',', ''))
+      payout['deliveries'] = {}
 
 def deliveries(*pages):
   data.setdefault('deliveries', {})
@@ -55,10 +56,16 @@ def deliveries(*pages):
     match = re.match('(.*) (..):(..)$', line)
     if match:
       g = match.groups()
-      delivery_id = day[0] + '-' + day[1] + '-' + day[2] + '--' + g[1] + '-' + g[2]
-      delivery = data['deliveries'][delivery_id] = {}
-      delivery['time'] = str(datetime(*[int(x) for x in day], *[int(x) for x in g[1:]]))
+      time = datetime(*[int(x) for x in day + g[1:]])
+      delivery = data['deliveries'][str(time)] = {}
       delivery['from'] = g[0]
+      for payout in data['payouts']:
+        p = data['payouts'][payout]
+        start = datetime.fromisoformat(p['start'])
+        end = datetime.fromisoformat(p['end'])
+        if time > start and time < end:
+          p['deliveries'][str(time)] = delivery
+          break
 
     # linijka z zapłatą
     match = re.match('Base Payment PLN (.?.\...)$', line)
