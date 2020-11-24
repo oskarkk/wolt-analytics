@@ -1,7 +1,6 @@
-#!/usr/bin/python3 -i
-
 import re
-from datetime import datetime, date
+import datetime as dt
+dt.dt = dt.datetime
 from utils import *
 from collections import Counter
 
@@ -28,70 +27,76 @@ def payouts(page):
         half = 1
         month = pmonth
 
-      name = str(date(year, month, half))
+      name = str(dt.date(year, month, half))
       payout = data['payouts'].setdefault(name, {})
-      payout['start'] = str(datetime(year, month, half))
-      payout['end'] = str(datetime(pyear, pmonth, phalf))
+      payout['start'] = str(dt.dt(year, month, half))
+      payout['end'] = str(dt.dt(pyear, pmonth, phalf))
       payout['value'] = float(parts[3].replace(',', ''))
       payout['deliveries'] = {}
 
 def deliveries(*pages):
   data.setdefault('deliveries', {})
-  s = []
-  for page in pages:
-    #page = page.replace('PLNO', 'PLN0')
-    s += page.splitlines()
-  day = None
-  delivery = None
-  for line in s:
+  s = ''.join(pages)
+  
+  patterns = {
+    name: re.compile(pattern) for name, pattern in zip([
+      'date', 'placetime', 'payment', 'distance', 'tip'
+    ], [
+      '\n(..)/(..)/(....)\n',
+      '\n(.*) (..):(..)\n',
+      'Base Payment PLN (.?.\...)$',
+      'Distance Payment (.?.\..?.) km PLN (.?.\...)$',
+      'Tip PLN (.?.\...)$'
+    ])
+  }
 
-    print(line.ljust(40), end='')
+  details = {
+    'payment': lambda g: {'base_payment': float(g[0])},
+    'distance': lambda g: {'km': float(g[0]), 'km_payment': float(g[1])},
+    'tip': lambda g: {'tip': float(g[0])}
+  }
 
-    # linijka z datą (data przypisywana do wszystkich zamówień aż do znalezienia nast. daty)
-    match = re.match('(..)/(..)/(....)$', line)
-    if match:
-      day = match.groups()[::-1]
+  def match(line, f):
+    if m := patterns[f].match(line):
+      g = m.groups()
+      return details[f](g)
+    return False
 
-    # linijka z restauracją i czasem (data + czas = id zamówienia)
-    match = re.match('(.*) (..):(..)$', line)
-    if match:
-      g = match.groups()
-      time = datetime(*[int(x) for x in day + g[1:]])
-      delivery = data['deliveries'][str(time)] = {}
-      delivery['from'] = g[0]
-      for payout in data['payouts'].values():
-        start = datetime.fromisoformat(payout['start'])
-        end = datetime.fromisoformat(payout['end'])
-        if time > start and time < end:
-          payout['deliveries'][str(time)] = delivery
-          break
+  def delivery(lines, place, time):
+    datetime = dt.dt.combine(date, time)
+    delivery = {
+      'from': place,
+      'payment': 0
+    }
 
-    # linijka z zapłatą
-    match = re.match('Base Payment PLN (.?.\...)$', line)
-    if match:
-      g = match.groups()
-      delivery['payment'] = delivery['base_payment'] = float(g[0])
-      print(delivery['payment'], end='')
+    details = ['payment', 'distance', 'tip']
+    while lines and details:
+      if d := match(lines.pop(0), details[0]):
+        delivery.update(d)
+        details.pop(0)
 
-    # linijka z odległością
-    # może być np. "1.4 km" i "2.71 km"
-    match = re.match('Distance Payment (.?.\..?.) km PLN (.?.\...)$', line)
-    if match:
-      g = match.groups()
-      delivery['km'] = float(g[0])
-      delivery['km_payment'] = float(g[1])
-      delivery['payment'] += delivery['km_payment']
-      print(delivery['payment'], end='')
+    # zapłata całkowita
+    for x in ['base_payment', 'km_payment', 'tip']:
+      delivery['payment'] += delivery.get(x, 0)
+    # data + czas = id zamówienia
+    return {str(datetime): delivery}
 
-    # linijka z napiwkiem
-    match = re.match('Tip PLN (.?.\...)$', line)
-    if match:
-      g = match.groups()
-      delivery['tip'] = float(g[0])
-      delivery['payment'] += delivery['tip']
-      print(delivery['payment'], end='')
-
-    print()
+  def day(s):
+    parts = patterns['placetime'].split(s)
+    parts.pop(0)
+    while parts:
+      time = dt.time(int(parts[1]), int(parts[2]))
+      place = parts[0]
+      d = delivery(parts[3].splitlines(), place, time)
+      data['deliveries'].update(d)
+      del parts[:4]
+  
+  parts = re.split(patterns['date'], s)
+  parts.pop(0)
+  while parts:
+    date = dt.date(int(parts[2]), int(parts[1]), int(parts[0]))
+    day(parts[3])
+    del parts[:4]
 
 def deliveries_summary(deliveries):
   c = Counter()
@@ -101,12 +106,12 @@ def deliveries_summary(deliveries):
 
   del c['from']
   c = dict(c)
-  pp(c)
+  for num in c:
+    c[num] = round(c[num], 2)
   return c
 
 
 data = read()
-
 pp(data)
 
 #s = ocr(*gl('S*')[2:4])
@@ -114,5 +119,3 @@ pp(data)
 #s = read(*glob('S*'))
 
 s = read_pages('10-h2')
-
-# sum([ data['deliveries'][y].get('km_payment',0) for y in data['deliveries'] ])
